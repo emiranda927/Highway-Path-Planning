@@ -269,8 +269,6 @@ string get_best_state(int lane, vector<double> lane_costs, vector<string>safe_st
 
   if(lowest_cost_lane == lane){return "KL";}
 
-  cout << "Lowest Cost Lane: " << lowest_cost_lane << endl;
-
   for(int i=0; i<safe_states.size(); i++){
     if(lane == 0){
       if(lowest_cost_lane == 2){
@@ -410,6 +408,7 @@ int main() {
           	}
 
           	bool too_close = false;
+          	bool FCW = false;
           	bool left_lane_free = false;
           	bool right_lane_free = false;
           	//CREATE FUSED OBJECT LIST
@@ -496,15 +495,13 @@ int main() {
               if(close_objects_lane2.size() == 0){lane_speed_2 = {50.0};}
 
               //END CREATE FUSED OBJECT LISTS
-              //
+
               //DEBUG*********
 
               //cout << "ID: " << sensor_fusion[i][1] << "   Lane: " << fused_obj_lane << "   Distance (S): " << check_car_s-car_s << endl;
 
               //END DEBUG****
 
-              //CALCULATE LANE SPEEDS
-              //TODO
 
           	  if(d < (2+4*lane+2) && d > (2+4*lane-2))
           	  {
@@ -512,16 +509,11 @@ int main() {
           	      //take action to prevent collision with vehicle
           	      too_close = true;
           	      forward_obj_vel = check_speed;
-          	      //logic for lane changes should be here
-          	      //finite state machine
-          	      //cost function
-          	      //etc
+          	      if((check_car_s > car_s) && (check_car_s-car_s) < 5){
+          	        FCW = true;
+          	      }
 
           	      vector<string> successor_states = get_successor_states(ego_state, lane);
-
-          	      //DEBUG
-          	      //cout << "Current Lane: " << lane << ", " << "Current State: " << ego_state << endl;
-          	      //END DEBUG
 
           	      vector<string> safe_states;
 
@@ -574,24 +566,6 @@ int main() {
           	      vector<double> lane_costs = get_lane_costs(lane, avg_lane_speeds, safe_states, num_obj_in_lanes);
           	      best_state = get_best_state(lane, lane_costs, safe_states);
 
-//          	      for(int i=0; i<safe_states.size(); i++){
-//          	        if(safe_states[i].compare("LCL") == 0){
-//          	          best_state = safe_states[i];
-//          	        }
-//          	        else if(safe_states[i].compare("LCR") == 0){
-//                      best_state = safe_states[i];
-//                    }
-//                    else if(safe_states[i].compare("PLCL") == 0){
-//                      best_state = safe_states[i];
-//                    }
-//                    else if(safe_states[i].compare("PLCR") == 0){
-//                      best_state = safe_states[i];
-//                    }
-//                    else if(safe_states[i].compare("KL") == 0){
-//                      best_state = safe_states[i];
-//                    }
-//          	      }
-
           	      cout << best_state << endl;
           	      if(best_state == "PLCL"){
           	        //TODO: safety checks should be done here
@@ -610,11 +584,6 @@ int main() {
           	      }
           	      else if(best_state == "KL"){/*cout<< "Keep Lane" << endl;*/}
 
-
-          	      //DEBUG
-          	      //cout << "Best State: " << best_state << ", " << "Chosen Lane: " << lane << endl;
-          	      //END DEBUG
-
           	      ego_state = best_state;
           	    }
           	  }
@@ -625,8 +594,13 @@ int main() {
           	if(too_close && ref_vel/2.24 > forward_obj_vel + 0.2){
           	  ref_vel -= 0.184;
           	}
-          	else if(too_close && ref_vel/2.24 > forward_obj_vel){
+          	else if(too_close && ref_vel/2.24 >= forward_obj_vel){
           	  ref_vel -= 0.224;
+          	  if(FCW){
+          	    cout << "Forward Collision Warning - BRAKE" << endl;
+          	    ref_vel -= 0.224;
+          	  }
+
           	}
           	else if(ref_vel < 49.5){
           	  ref_vel += 0.224;
