@@ -194,6 +194,11 @@ vector<string> get_successor_states(string state, int lane){
 
 
 vector<double> get_avg_lane_speeds(vector<double> lane0, vector<double> lane1, vector<double> lane2){
+  /*
+   * Calculates average lane speed for each lane given object data within certain distance
+   * of ego vehicle
+   *
+   */
 
   double lane0_speed = 0.0; double lane1_speed = 0.0; double lane2_speed = 0.0;
   vector<double> avg_lane_speeds = {0.0, 0.0, 0.0};
@@ -215,6 +220,9 @@ vector<double> get_avg_lane_speeds(vector<double> lane0, vector<double> lane1, v
 }
 
 vector<double> get_lane_costs(int current_lane, vector<double>lane_speeds, vector<string> safe_states, vector<int> num_obj_in_lane){
+  /*
+   * Calculates the cost of each safe state given the current occupied lane, objects in lanes and average lane speeds
+   */
 
   int intended_lane;
   vector<double> lane_cost = {0.0, 0.0, 0.0};
@@ -227,7 +235,7 @@ vector<double> get_lane_costs(int current_lane, vector<double>lane_speeds, vecto
 
   //PENALIZE SLOWER MOVING LANES
   for(int j=0; j<lane_speeds.size(); j++){
-    cout << "Lane Speed " << j <<" = "<< lane_speeds[j] << endl;
+    //cout << "Lane Speed " << j <<" = "<< lane_speeds[j] << endl;
     lane_cost[j] += (1/(lane_speeds[j]));
   }
 
@@ -247,9 +255,12 @@ vector<double> get_lane_costs(int current_lane, vector<double>lane_speeds, vecto
 }
 
 string get_best_state(int lane, vector<double> lane_costs, vector<string>safe_states){
+  /*
+   * Return the best state given calculated lane costs and current occupied lane
+   */
 
   //DEBUG
-  cout << "Lane 0 cost: " << lane_costs[0] << "   Lane 1 cost: " << lane_costs[1] << "    Lane 2 cost: " << lane_costs[2] << endl;
+  //cout << "Lane 0 cost: " << lane_costs[0] << "   Lane 1 cost: " << lane_costs[1] << "    Lane 2 cost: " << lane_costs[2] << endl;
   //END DEBUG
 
   string best_state;
@@ -411,8 +422,6 @@ int main() {
           	bool FCW = false;
           	bool left_lane_free = false;
           	bool right_lane_free = false;
-          	//CREATE FUSED OBJECT LIST
-
             double forward_obj_vel;
 
           	//find ref vel
@@ -426,8 +435,6 @@ int main() {
               double check_car_s = sensor_fusion[i][5];
               int fused_obj_lane;
 
-
-
               check_car_s += ((double)prev_size*0.02*check_speed);
 
               if(d < (2+4*0+2) && d > (2+4*0-2)){fused_obj_lane = 0;}
@@ -438,36 +445,28 @@ int main() {
                 //add vehicle ID to object list for given lane
                 if(fused_obj_lane == 0 && find(close_objects_lane0.begin(), close_objects_lane0.end(), obj_id) == close_objects_lane0.end()){
                   close_objects_lane0.push_back(obj_id);
-//                  lane_speed_0.push_back(check_speed);
                 }
                 else if(fused_obj_lane == 1 && find(close_objects_lane1.begin(), close_objects_lane1.end(), obj_id) == close_objects_lane1.end()){
                   close_objects_lane1.push_back(obj_id);
-//                  lane_speed_1.push_back(check_speed);
                 }
                 else if(fused_obj_lane == 2 && find(close_objects_lane2.begin(), close_objects_lane2.end(), obj_id) == close_objects_lane2.end()){
                   close_objects_lane2.push_back(obj_id);
-//                  lane_speed_2.push_back(check_speed);
                 }
-//                avg_lane_speeds = get_avg_lane_speeds(lane_speed_0,lane_speed_1,lane_speed_2);
               }
 
               else{
                 if(fused_obj_lane == 0){
                   close_objects_lane0.erase(remove(close_objects_lane0.begin(), close_objects_lane0.end(), obj_id), close_objects_lane0.end());
-//                  lane_speed_0.erase(remove(lane_speed_0.begin(), lane_speed_0.end(), check_speed), lane_speed_0.end());
                 }
                 else if(fused_obj_lane == 1){
                   close_objects_lane1.erase(remove(close_objects_lane1.begin(), close_objects_lane1.end(), obj_id), close_objects_lane1.end());
-//                  lane_speed_1.erase(remove(lane_speed_1.begin(), lane_speed_1.end(),check_speed), lane_speed_1.end());
                 }
                 else if(fused_obj_lane == 2){
                   close_objects_lane2.erase(remove(close_objects_lane2.begin(), close_objects_lane2.end(),obj_id), close_objects_lane2.end());
-//                  lane_speed_2.erase(remove(lane_speed_2.begin(), lane_speed_2.end(),check_speed), lane_speed_2.end());
                 }
-//                avg_lane_speeds = get_avg_lane_speeds(lane_speed_0,lane_speed_1,lane_speed_2);
               }
 
-              //LANE SPEED LISTS
+              // POPULATE LANE SPEED LISTS
 
               if((check_car_s-car_s) < 100.0 && (check_car_s-car_s) > -15.0){
                 if(fused_obj_lane == 0){lane_speed_0.push_back(check_speed);}
@@ -489,7 +488,6 @@ int main() {
                 avg_lane_speeds = get_avg_lane_speeds(lane_speed_0,lane_speed_1,lane_speed_2);
               }
 
-              //cout << close_objects_lane0.size() << " " << close_objects_lane1.size() << " "<< close_objects_lane2.size() << endl;
               if(close_objects_lane0.size() == 0){lane_speed_0 = {50.0};}
               if(close_objects_lane1.size() == 0){lane_speed_1 = {50.0};}
               if(close_objects_lane2.size() == 0){lane_speed_2 = {50.0};}
@@ -499,6 +497,7 @@ int main() {
               //DEBUG*********
 
               //cout << "ID: " << sensor_fusion[i][1] << "   Lane: " << fused_obj_lane << "   Distance (S): " << check_car_s-car_s << endl;
+              //cout << close_objects_lane0.size() << " " << close_objects_lane1.size() << " "<< close_objects_lane2.size() << endl;
 
               //END DEBUG****
 
@@ -519,7 +518,7 @@ int main() {
 
           	      string best_state;
 
-
+          	      //Determine whether adjacent lanes are free given object lists
           	      if(lane == 0 && close_objects_lane1.size() == 0){right_lane_free = true;}
           	      else if(lane == 2 && close_objects_lane1.size() == 0){left_lane_free = true;}
           	      else if(lane == 1){
@@ -527,64 +526,46 @@ int main() {
           	        if(close_objects_lane2.size() == 0){right_lane_free = true;}
           	      }
 
+          	      //Classify safe states based on free space
           	      for(int i=0; i<successor_states.size(); i++){
-          	        if(successor_states[i].compare("KL") == 0){
-          	          safe_states.push_back(successor_states[i]);
-          	        }
+          	        if(successor_states[i].compare("KL") == 0){safe_states.push_back(successor_states[i]);}
           	        if(successor_states[i].compare("PLCL") == 0){
-          	          if(left_lane_free){
-          	            safe_states.push_back(successor_states[i]);
-          	          }
-          	          else{cout << " ";}
+          	          if(left_lane_free){safe_states.push_back(successor_states[i]);}
           	        }
           	        if(successor_states[i].compare("PLCR") == 0){
-          	          if(right_lane_free){
-
-          	            safe_states.push_back(successor_states[i]);
-          	          }
-          	          else{cout << " ";}
+          	          if(right_lane_free){safe_states.push_back(successor_states[i]);}
           	        }
           	        if(successor_states[i].compare("LCL") == 0){
-          	          if(left_lane_free){
-          	            safe_states.push_back(successor_states[i]);
-          	          }
-          	          else{cout << "Left Lane Not Free ";}
+          	          if(left_lane_free){safe_states.push_back(successor_states[i]);}
           	        }
           	        if(successor_states[i].compare("LCR") == 0){
-          	          if(right_lane_free){
-          	            safe_states.push_back(successor_states[i]);
-          	          }
-          	          else{cout << "Right Lane Not Free ";}
+          	          if(right_lane_free){safe_states.push_back(successor_states[i]);}
           	        }
-
           	      }
 
           	      vector<int> num_obj_in_lanes;
           	      num_obj_in_lanes.push_back(close_objects_lane0.size());
           	      num_obj_in_lanes.push_back(close_objects_lane1.size());
           	      num_obj_in_lanes.push_back(close_objects_lane2.size());
-          	      vector<double> lane_costs = get_lane_costs(lane, avg_lane_speeds, safe_states, num_obj_in_lanes);
-          	      best_state = get_best_state(lane, lane_costs, safe_states);
+          	      vector<double> lane_costs = get_lane_costs(lane, avg_lane_speeds, safe_states, num_obj_in_lanes); //Calculate Lane costs
+          	      best_state = get_best_state(lane, lane_costs, safe_states); //Retrieve best state
 
-          	      cout << best_state << endl;
           	      if(best_state == "PLCL"){
-          	        //TODO: safety checks should be done here
-          	        cout << "Preparing Lane Change Left" << endl;
+          	        //TODO: safety checks should be done here?
+          	        //TODO: Expand on Functionality of PLCL/R
           	      }
           	      else if(best_state == "LCL" && (d - (2+4*lane) < 0.1)){
           	        lane -= 1;
           	      }
           	      else if(best_state == "PLCR" ){
-                    //TODO: safety checks should be done here
-          	        cout << "Preparing Lane Change Right" << endl;
-
+                    //TODO: safety checks should be done here?
+          	        //TODO: Expand on Functionality of PLCL/R
           	      }
           	      else if(best_state == "LCR" && (d - (2+4*lane) < 0.1)){
           	        lane += 1;
           	      }
           	      else if(best_state == "KL"){/*cout<< "Keep Lane" << endl;*/}
-
-          	      ego_state = best_state;
+          	      ego_state = best_state; //Set current state to best state for FSM
           	    }
           	  }
           	}
@@ -606,8 +587,6 @@ int main() {
           	  ref_vel += 0.224;
           	}
           	//END SENSOR FUSION
-
-          	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
 
           	// Define vector of widely spaced reference waypoints
           	vector<double> ptsx, ptsy;
