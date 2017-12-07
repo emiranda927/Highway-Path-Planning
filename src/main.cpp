@@ -164,6 +164,155 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s, const vec
 
 }
 
+
+vector<string> get_successor_states(string state, int lane){
+  /*
+  Provides the possible next states given the current state for the FSM
+  discussed in the course, with the exception that lane changes happen
+  instantaneously, so LCL and LCR can only transition back to KL.
+  */
+  int lanes_available = 3;
+  vector<string> states;
+  states.push_back("KL");
+  if(state.compare("KL") == 0) {
+      states.push_back("PLCL");
+      states.push_back("PLCR");
+  } else if (state.compare("PLCR") == 0) {
+      if (lane < lanes_available - 1) { //if lane isn't far right lane
+          states.push_back("PLCR");
+          states.push_back("LCR");
+      }
+  } else if (state.compare("PLCL") == 0) {
+      if (lane > 0) {
+          states.push_back("PLCL");
+          states.push_back("LCL");
+      }
+  }
+  //If state is "LCL" or "LCR", then just return "KL"
+  return states;
+}
+
+
+vector<double> get_avg_lane_speeds(vector<double> lane0, vector<double> lane1, vector<double> lane2){
+
+  double lane0_speed = 0.0; double lane1_speed = 0.0; double lane2_speed = 0.0;
+  vector<double> avg_lane_speeds = {0.0, 0.0, 0.0};
+
+  //TEST LANE 0
+  for(int i=0; i<lane0.size(); i++){lane0_speed += lane0[i];}
+  avg_lane_speeds[0] = lane0_speed/lane0.size();
+
+  //TEST LANE 1
+  for(int i=0; i<lane1.size(); i++){lane1_speed += lane1[i];}
+  avg_lane_speeds[1] = lane1_speed/lane1.size();
+
+  //TEST LANE 2
+  for(int i=0; i<lane2.size(); i++){lane2_speed += lane2[i];}
+  avg_lane_speeds[2] = lane2_speed/lane2.size();
+
+
+  return avg_lane_speeds;
+}
+
+vector<double> get_lane_costs(int current_lane, vector<double>lane_speeds, vector<string> safe_states, vector<int> num_obj_in_lane){
+
+  int intended_lane;
+  vector<double> lane_cost = {0.0, 0.0, 0.0};
+  vector<string> prioritized_states;
+
+  //PENALIZE MOVING INTO CROWDED LANES
+  for(int j=0; j<num_obj_in_lane.size(); j++){
+    lane_cost[j] += 10*num_obj_in_lane[j];
+  }
+
+  //PENALIZE SLOWER MOVING LANES
+  for(int j=0; j<lane_speeds.size(); j++){
+    cout << "Lane Speed " << j <<" = "<< lane_speeds[j] << endl;
+    lane_cost[j] += (1/(lane_speeds[j]));
+  }
+
+  for(int i=0; i<safe_states.size(); i++){
+
+    if(safe_states[i].compare("PLCL") == 0 || safe_states[i].compare("LCL") == 0){intended_lane = current_lane-1;}
+    else if(safe_states[i].compare("PLCR") == 0 || safe_states[i].compare("LCR") == 0){intended_lane = current_lane+1;}
+    else{intended_lane = current_lane;}
+
+    //PENALIZE STAGNATION IF OTHER MANUEVERS AVAILABLE
+    if(safe_states[i].compare("PLCL") == 0 || safe_states[i].compare("PLCR") == 0 || safe_states[i].compare("KL") == 0){
+      lane_cost[current_lane] += 1;}
+
+  }
+
+  return lane_cost;
+}
+
+string get_best_state(int lane, vector<double> lane_costs, vector<string>safe_states){
+
+  //DEBUG
+  cout << "Lane 0 cost: " << lane_costs[0] << "   Lane 1 cost: " << lane_costs[1] << "    Lane 2 cost: " << lane_costs[2] << endl;
+  //END DEBUG
+
+  string best_state;
+  int lowest_cost_lane;
+  int intended_lane;
+
+  double lowest_cost = 99;
+  double temp_cost = 0;
+
+  for(int i=0; i<lane_costs.size(); i++){
+    temp_cost = lane_costs[i];
+    if(temp_cost < lowest_cost){
+      lowest_cost = temp_cost;
+      lowest_cost_lane = i;
+    }
+  }
+
+  if(lowest_cost_lane == lane){return "KL";}
+
+  cout << "Lowest Cost Lane: " << lowest_cost_lane << endl;
+
+  for(int i=0; i<safe_states.size(); i++){
+    if(lane == 0){
+      if(lowest_cost_lane == 2){
+        if(lane_costs[1] < lane_costs[lane]){lowest_cost_lane = 1;}
+      }
+      if(lowest_cost_lane == 1 && safe_states[i].compare("LCR") == 0){return "LCR";}
+    }
+    if(lane == 2){
+      if(lowest_cost_lane == 0){
+        if(lane_costs[1] < lane_costs[lane]){lowest_cost_lane = 1;}
+      }
+      if(lowest_cost_lane == 1 && safe_states[i].compare("LCL") == 0){return "LCL";}
+
+    }
+    if(lane == 1){
+      if(lowest_cost_lane == 0 && safe_states[i].compare("LCL") == 0){return "LCL";}
+      else if(lowest_cost_lane == 2 && safe_states[i].compare("LCR") == 0){return "LCR";}
+    }
+
+  }
+
+  for(int i=0; i<safe_states.size(); i++){
+    if(lane == 0){
+      if(lowest_cost_lane == 2){
+        if(lane_costs[1] < lane_costs[lane]){lowest_cost_lane = 1;}
+      }
+      if(lowest_cost_lane == 1 && safe_states[i].compare("PLCR") == 0){return "PLCR";}
+    }
+    if(lane == 2){
+      if(lowest_cost_lane == 0){
+        if(lane_costs[1] < lane_costs[lane]){lowest_cost_lane = 1;}
+      }
+      if(lowest_cost_lane == 1 && safe_states[i].compare("PLCL") == 0){return "PLCL";}
+    }
+    if(lane == 1){
+      if(lowest_cost_lane == 0 && safe_states[i].compare("PLCL") == 0){return "PLCL";}
+      else if(lowest_cost_lane == 2 && safe_states[i].compare("PLCR") == 0){return "PLCR";}
+    }
+  }
+  return "KL";//IF NO LANE IS FOUND, RETURN KL
+}
+
 int main() {
   uWS::Hub h;
 
@@ -203,16 +352,21 @@ int main() {
 
   int lane = 1; //current lane tracker
   double ref_vel = 0.0; //mph
+  string ego_state = "KL";
+  vector<double> close_objects_lane0, close_objects_lane1, close_objects_lane2;
+  vector<double> lane_speed_0, lane_speed_1, lane_speed_2;
 
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &lane, &ref_vel](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+
+
+  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &lane, &ref_vel, &ego_state, &close_objects_lane0, &close_objects_lane1, &close_objects_lane2, &lane_speed_0, &lane_speed_1, &lane_speed_2](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
     //auto sdata = string(data).substr(0, length);
     //cout << sdata << endl;
-    if (length && length > 2 && data[0] == '4' && data[1] == '2') {
 
+    if (length && length > 2 && data[0] == '4' && data[1] == '2') {
       auto s = hasData(data);
 
       if (s != "") {
@@ -245,6 +399,7 @@ int main() {
 
           	vector<double> next_x_vals;
           	vector<double> next_y_vals;
+          	vector<double> avg_lane_speeds;
 
           	int prev_size = previous_path_x.size();
 
@@ -255,34 +410,222 @@ int main() {
           	}
 
           	bool too_close = false;
+          	bool left_lane_free = false;
+          	bool right_lane_free = false;
+          	//CREATE FUSED OBJECT LIST
+
+            double forward_obj_vel;
 
           	//find ref vel
           	for(int i=0; i<sensor_fusion.size(); i++){
           	  //car is in my lane
           	  float d = sensor_fusion[i][6];
+          	  int obj_id = sensor_fusion[i][0];
+              double vx = sensor_fusion[i][3];
+              double vy = sensor_fusion[i][4];
+              double check_speed = sqrt(vx*vx+vy*vy);
+              double check_car_s = sensor_fusion[i][5];
+              int fused_obj_lane;
+
+
+
+              check_car_s += ((double)prev_size*0.02*check_speed);
+
+              if(d < (2+4*0+2) && d > (2+4*0-2)){fused_obj_lane = 0;}
+              else if(d < (2+4*1+2) && d > (2+4*1-2)){fused_obj_lane = 1;}
+              else if(d < (2+4*2+2) && d > (2+4*2-2)){fused_obj_lane = 2;}
+
+              if((check_car_s-car_s) < 25.0 && (check_car_s-car_s) > -10.0){
+                //add vehicle ID to object list for given lane
+                if(fused_obj_lane == 0 && find(close_objects_lane0.begin(), close_objects_lane0.end(), obj_id) == close_objects_lane0.end()){
+                  close_objects_lane0.push_back(obj_id);
+//                  lane_speed_0.push_back(check_speed);
+                }
+                else if(fused_obj_lane == 1 && find(close_objects_lane1.begin(), close_objects_lane1.end(), obj_id) == close_objects_lane1.end()){
+                  close_objects_lane1.push_back(obj_id);
+//                  lane_speed_1.push_back(check_speed);
+                }
+                else if(fused_obj_lane == 2 && find(close_objects_lane2.begin(), close_objects_lane2.end(), obj_id) == close_objects_lane2.end()){
+                  close_objects_lane2.push_back(obj_id);
+//                  lane_speed_2.push_back(check_speed);
+                }
+//                avg_lane_speeds = get_avg_lane_speeds(lane_speed_0,lane_speed_1,lane_speed_2);
+              }
+
+              else{
+                if(fused_obj_lane == 0){
+                  close_objects_lane0.erase(remove(close_objects_lane0.begin(), close_objects_lane0.end(), obj_id), close_objects_lane0.end());
+//                  lane_speed_0.erase(remove(lane_speed_0.begin(), lane_speed_0.end(), check_speed), lane_speed_0.end());
+                }
+                else if(fused_obj_lane == 1){
+                  close_objects_lane1.erase(remove(close_objects_lane1.begin(), close_objects_lane1.end(), obj_id), close_objects_lane1.end());
+//                  lane_speed_1.erase(remove(lane_speed_1.begin(), lane_speed_1.end(),check_speed), lane_speed_1.end());
+                }
+                else if(fused_obj_lane == 2){
+                  close_objects_lane2.erase(remove(close_objects_lane2.begin(), close_objects_lane2.end(),obj_id), close_objects_lane2.end());
+//                  lane_speed_2.erase(remove(lane_speed_2.begin(), lane_speed_2.end(),check_speed), lane_speed_2.end());
+                }
+//                avg_lane_speeds = get_avg_lane_speeds(lane_speed_0,lane_speed_1,lane_speed_2);
+              }
+
+              //LANE SPEED LISTS
+
+              if((check_car_s-car_s) < 100.0 && (check_car_s-car_s) > -15.0){
+                if(fused_obj_lane == 0){lane_speed_0.push_back(check_speed);}
+                else if(fused_obj_lane == 1){lane_speed_1.push_back(check_speed);}
+                else if(fused_obj_lane == 2){lane_speed_2.push_back(check_speed);}
+                avg_lane_speeds = get_avg_lane_speeds(lane_speed_0,lane_speed_1,lane_speed_2);
+              }
+
+              else{
+                if(fused_obj_lane == 0){
+                  lane_speed_0.erase(remove(lane_speed_0.begin(), lane_speed_0.end(), check_speed), lane_speed_0.end());
+                }
+                else if(fused_obj_lane == 1){
+                  lane_speed_1.erase(remove(lane_speed_1.begin(), lane_speed_1.end(),check_speed), lane_speed_1.end());
+                }
+                else if(fused_obj_lane == 2){
+                  lane_speed_2.erase(remove(lane_speed_2.begin(), lane_speed_2.end(),check_speed), lane_speed_2.end());
+                }
+                avg_lane_speeds = get_avg_lane_speeds(lane_speed_0,lane_speed_1,lane_speed_2);
+              }
+
+              //cout << close_objects_lane0.size() << " " << close_objects_lane1.size() << " "<< close_objects_lane2.size() << endl;
+              if(close_objects_lane0.size() == 0){lane_speed_0 = {50.0};}
+              if(close_objects_lane1.size() == 0){lane_speed_1 = {50.0};}
+              if(close_objects_lane2.size() == 0){lane_speed_2 = {50.0};}
+
+              //END CREATE FUSED OBJECT LISTS
+              //
+              //DEBUG*********
+
+              //cout << "ID: " << sensor_fusion[i][1] << "   Lane: " << fused_obj_lane << "   Distance (S): " << check_car_s-car_s << endl;
+
+              //END DEBUG****
+
+              //CALCULATE LANE SPEEDS
+              //TODO
+
           	  if(d < (2+4*lane+2) && d > (2+4*lane-2))
           	  {
-          	    double vx = sensor_fusion[i][3];
-          	    double vy = sensor_fusion[i][4];
-          	    double check_speed = sqrt(vx*vx+vy*vy);
-          	    double check_car_s = sensor_fusion[i][5];
-
-          	    check_car_s+=((double)prev_size*0.02*check_speed);
-
           	    if((check_car_s > car_s) && (check_car_s-car_s) < 30){ //within 30 meters
           	      //take action to prevent collision with vehicle
           	      too_close = true;
-
+          	      forward_obj_vel = check_speed;
           	      //logic for lane changes should be here
           	      //finite state machine
           	      //cost function
           	      //etc
+
+          	      vector<string> successor_states = get_successor_states(ego_state, lane);
+
+          	      //DEBUG
+          	      //cout << "Current Lane: " << lane << ", " << "Current State: " << ego_state << endl;
+          	      //END DEBUG
+
+          	      vector<string> safe_states;
+
+          	      string best_state;
+
+
+          	      if(lane == 0 && close_objects_lane1.size() == 0){right_lane_free = true;}
+          	      else if(lane == 2 && close_objects_lane1.size() == 0){left_lane_free = true;}
+          	      else if(lane == 1){
+          	        if(close_objects_lane0.size() == 0){left_lane_free = true;}
+          	        if(close_objects_lane2.size() == 0){right_lane_free = true;}
+          	      }
+
+          	      for(int i=0; i<successor_states.size(); i++){
+          	        if(successor_states[i].compare("KL") == 0){
+          	          safe_states.push_back(successor_states[i]);
+          	        }
+          	        if(successor_states[i].compare("PLCL") == 0){
+          	          if(left_lane_free){
+          	            safe_states.push_back(successor_states[i]);
+          	          }
+          	          else{cout << " ";}
+          	        }
+          	        if(successor_states[i].compare("PLCR") == 0){
+          	          if(right_lane_free){
+
+          	            safe_states.push_back(successor_states[i]);
+          	          }
+          	          else{cout << " ";}
+          	        }
+          	        if(successor_states[i].compare("LCL") == 0){
+          	          if(left_lane_free){
+          	            safe_states.push_back(successor_states[i]);
+          	          }
+          	          else{cout << "Left Lane Not Free ";}
+          	        }
+          	        if(successor_states[i].compare("LCR") == 0){
+          	          if(right_lane_free){
+          	            safe_states.push_back(successor_states[i]);
+          	          }
+          	          else{cout << "Right Lane Not Free ";}
+          	        }
+
+          	      }
+
+          	      vector<int> num_obj_in_lanes;
+          	      num_obj_in_lanes.push_back(close_objects_lane0.size());
+          	      num_obj_in_lanes.push_back(close_objects_lane1.size());
+          	      num_obj_in_lanes.push_back(close_objects_lane2.size());
+          	      vector<double> lane_costs = get_lane_costs(lane, avg_lane_speeds, safe_states, num_obj_in_lanes);
+          	      best_state = get_best_state(lane, lane_costs, safe_states);
+
+//          	      for(int i=0; i<safe_states.size(); i++){
+//          	        if(safe_states[i].compare("LCL") == 0){
+//          	          best_state = safe_states[i];
+//          	        }
+//          	        else if(safe_states[i].compare("LCR") == 0){
+//                      best_state = safe_states[i];
+//                    }
+//                    else if(safe_states[i].compare("PLCL") == 0){
+//                      best_state = safe_states[i];
+//                    }
+//                    else if(safe_states[i].compare("PLCR") == 0){
+//                      best_state = safe_states[i];
+//                    }
+//                    else if(safe_states[i].compare("KL") == 0){
+//                      best_state = safe_states[i];
+//                    }
+//          	      }
+
+          	      cout << best_state << endl;
+          	      if(best_state == "PLCL"){
+          	        //TODO: safety checks should be done here
+          	        cout << "Preparing Lane Change Left" << endl;
+          	      }
+          	      else if(best_state == "LCL" && (d - (2+4*lane) < 0.1)){
+          	        lane -= 1;
+          	      }
+          	      else if(best_state == "PLCR" ){
+                    //TODO: safety checks should be done here
+          	        cout << "Preparing Lane Change Right" << endl;
+
+          	      }
+          	      else if(best_state == "LCR" && (d - (2+4*lane) < 0.1)){
+          	        lane += 1;
+          	      }
+          	      else if(best_state == "KL"){/*cout<< "Keep Lane" << endl;*/}
+
+
+          	      //DEBUG
+          	      //cout << "Best State: " << best_state << ", " << "Chosen Lane: " << lane << endl;
+          	      //END DEBUG
+
+          	      ego_state = best_state;
           	    }
           	  }
           	}
 
           	//prevent collision logic
-          	if(too_close){
+
+          	if(too_close && ref_vel/2.24 > forward_obj_vel + 0.2){
+          	  ref_vel -= 0.184;
+          	}
+          	else if(too_close && ref_vel/2.24 > forward_obj_vel){
           	  ref_vel -= 0.224;
           	}
           	else if(ref_vel < 49.5){
