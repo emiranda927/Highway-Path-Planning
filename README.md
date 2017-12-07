@@ -41,7 +41,7 @@ sensor_fusion A 2d vector of cars and then that car's [car's unique ID, car's x 
 
 ## Behavior and Path Planning
 
-![](https://github.com/emiranda927/Highway-Path-Planning/blob/master/PathPlanningModel.JPG = 300x)
+![](https://github.com/emiranda927/Highway-Path-Planning/blob/master/PathPlanningModel.JPG =300x)
 
 ### Path Planning Model
 #### Path Horizon & Splines
