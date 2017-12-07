@@ -40,6 +40,9 @@ sensor_fusion A 2d vector of cars and then that car's [car's unique ID, car's x 
 2. There will be some latency between the simulator running and the path planner returning a path, with optimized code usually its not very long maybe just 1-3 time steps. During this delay the simulator will continue using points that it was last given, because of this its a good idea to store the last points you have used so you can have a smooth transition. previous_path_x, and previous_path_y can be helpful for this transition since they show the last points given to the simulator controller with the processed points already removed. You would either return a path that extends this previous path or make sure to create a new path that has a smooth transition with this last path.
 
 ## Behavior and Path Planning
+
+![](Highway-Path-Planning/PathPlanningModel.JPG)
+
 ### Path Planning Model
 #### Path Horizon & Splines
 The speed and path of the planner was defined by a horizon of points (`N`) that controlled both the path and speed of the trajectories. The spacing of the points within the path determined the speed while the time  between points was fixed at 0.02 seconds. The equation to calculate the number of points that defined this horizon is 'double N = (target_dist/(0.02 * ref_vel/2.24));'. 'target_x' is the target distance that we'd like the path to be and `ref_vel` is the target speed of the vehicle.
@@ -95,7 +98,3 @@ This project was tough in that defining an architecture or model is difficult up
 In its current form, my cost function is pretty rudimentary. It works, but I'd like to add some other important considerations like object yaw rate to determine if other vehicles are making lane changes. I would also like to use yaw rates for some safety manuevers. In some chance encounters, vehicle from adjacent lanes would abruptly cut infront of the ego vehicle, causing a collision that couldn't be prevented. I'd like to implement a way of detecting these lane changes ahead of time and preventatively slowing down the ego vehicle to give it some breathing room.
 
 I would also like to expand on the "Prepare Lane Change" states. In their current form, they really only serve as a safety check to make sure that the ego vehicle doesn't sit between lanes as it's deciding on lane change and that the intended lane is free. I would like it to also slow down and speed up the ego vehicle if it's boxed in by a slower moving vehicle infront and adjacent to it, so that it can get infront of the adjacent vehicle or get behind of the adjacent vehicle to make a lane change.
-
-
-
-
